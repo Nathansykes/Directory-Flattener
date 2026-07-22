@@ -14,7 +14,8 @@ if (-not (Test-Path $logDir)) {
 }
 
 $timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
-$logFile = Join-Path $logDir "Install_$timestamp.log"
+$processId = [System.Diagnostics.Process]::GetCurrentProcess().Id
+$logFile = Join-Path $logDir "Install_$timestamp`_PID$processId.log"
 
 function Write-Log {
     param(
@@ -23,7 +24,26 @@ function Write-Log {
     )
     
     $logMessage = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
-    Add-Content -Path $logFile -Value $logMessage -ErrorAction Continue
+    
+    # Retry mechanism for file locking issues
+    $maxRetries = 3
+    $retryCount = 0
+    $success = $false
+    
+    while (-not $success -and $retryCount -lt $maxRetries) {
+        try {
+            Add-Content -Path $logFile -Value $logMessage -ErrorAction Stop
+            $success = $true
+        }
+        catch {
+            $retryCount++
+            if ($retryCount -lt $maxRetries) {
+                Start-Sleep -Milliseconds 100  # Wait 100ms before retrying
+            }
+        }
+    }
+    
+    # Always output to console, regardless of log success
     Write-Host $Message
 }
 
