@@ -171,12 +171,14 @@ function Install-FlattenContextMenu {
     Write-LogDebug "Flatten script path: $flattenScript"
     
     # Command for Method 1: launches PowerShell with flattened folder in parent
-    $command = "$psExe -NoProfile -ExecutionPolicy Bypass -Command `"& '$flattenScript' -Paths '%L'`" & pause"
+    # IMPORTANT: pause must be INSIDE the PowerShell command so it runs even on errors
+    $command = "$psExe -NoProfile -ExecutionPolicy Bypass -Command `"try { & '$flattenScript' -Paths '%L' } catch { Write-Host ('ERROR: ' + `$_) -ForegroundColor Red } ; Write-Host 'Press any key to close...' -ForegroundColor Yellow ; `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')`""
     
     Set-ItemProperty -Path $commandPath -Name "(Default)" -Value $command -Force
     Write-Host "  Registered: Flatten Directories (Method 1)" -ForegroundColor Green
     Write-Log "Registered: Flatten Directories (Method 1)"
     Write-LogDebug "Registry key: $commandPath"
+    Write-LogDebug "Registry command: $command"
     
     # Create registry path for Method 2 (drag and drop)
     # This uses a different registry structure for right-click drag operations
@@ -198,12 +200,14 @@ function Install-FlattenContextMenu {
     
     
     # Command for Method 2: uses %V (target folder) and %L (source items)
-    $commandDrag = "$psExe -NoProfile -ExecutionPolicy Bypass -Command `"& '$flattenScript' -Paths '%L' -OutputPath '%V'`" & pause"
+    # IMPORTANT: pause must be INSIDE the PowerShell command so it runs even on errors
+    $commandDrag = "$psExe -NoProfile -ExecutionPolicy Bypass -Command `"try { & '$flattenScript' -Paths '%L' -OutputPath '%V' } catch { Write-Host ('ERROR: ' + `$_) -ForegroundColor Red } ; Write-Host 'Press any key to close...' -ForegroundColor Yellow ; `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')`""
     
     Set-ItemProperty -Path $commandPathDrag -Name "(Default)" -Value $commandDrag -Force
     Write-Host "  Registered: Flatten Into This Folder (Method 2)" -ForegroundColor Green
     Write-Log "Registered: Flatten Into This Folder (Method 2)"
     Write-LogDebug "Registry key: $commandPathDrag"
+    Write-LogDebug "Registry command: $commandDrag"
     
     $endTime = Get-Date
     $duration = ($endTime - $startTime).TotalSeconds
