@@ -50,7 +50,17 @@ function Install-FlattenContextMenu {
     Write-Host ""
     Write-Host "Copying scripts to installation directory..." -ForegroundColor Yellow
     
-    $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    # Use $PSScriptRoot for reliable script directory detection
+    if ([string]::IsNullOrEmpty($PSScriptRoot)) {
+        $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+    } else {
+        $scriptDir = $PSScriptRoot
+    }
+    
+    if ([string]::IsNullOrEmpty($scriptDir)) {
+        Write-Host "ERROR: Could not determine script directory" -ForegroundColor Red
+        exit 1
+    }
     
     $scriptsToCopy = @(
         "Flatten-Directories.ps1"
