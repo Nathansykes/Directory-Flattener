@@ -143,7 +143,8 @@ function Install-FlattenContextMenu {
     Write-LogDebug "Script directory: $scriptDir"
     
     $scriptsToCopy = @(
-        "Flatten-Directories.ps1"
+        "Flatten-Directories.ps1",
+        "FlattenIntoDirectory.ps1"
     )
     
     foreach ($script in $scriptsToCopy) {
@@ -195,23 +196,39 @@ function Install-FlattenContextMenu {
     $command = "$psExe -NoProfile -ExecutionPolicy Bypass -Command `"try { & '$flattenScript' -Paths '%L' } catch { Write-Host ('ERROR: ' + `$_) -ForegroundColor Red } ; Write-Host 'Press any key to close...' -ForegroundColor Yellow ; `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')`""
     
     Set-ItemProperty -Path $commandPath -Name "(Default)" -Value $command -Force
-    Write-Host "  Registered: Flatten Directories (Method 1)" -ForegroundColor Green
-    Write-Log "Registered: Flatten Directories (Method 1)"
+    Write-Host "  Registered: Flatten Directories" -ForegroundColor Green
+    Write-Log "Registered: Flatten Directories"
     Write-LogDebug "Registry key: $commandPath"
     Write-LogDebug "Registry command: $command"
     
-    # Create registry path for Method 2 (drag and drop)
-    # This uses a different registry structure for right-click drag operations
-    $regPathDrag = "HKCU:\Software\Classes\Directory\shell\FlattenInto"
+    # Create registry path for Method 2 (right-click drag onto target folder)
+    # This uses Directory\Background so it appears when right-clicking on a folder (target)
+    $regPathBackground = "HKCU:\Software\Classes\Directory\Background\shell\FlattenIntoDirectory"
     
-    if (-not (Test-Path $regPathDrag)) {
-        New-Item -Path $regPathDrag -Force | Out-Null
-        Write-LogDebug "Created registry path: $regPathDrag"
+    if (-not (Test-Path $regPathBackground)) {
+        New-Item -Path $regPathBackground -Force | Out-Null
+        Write-LogDebug "Created registry path: $regPathBackground"
     }
     
-    Set-ItemProperty -Path $regPathDrag -Name "(Default)" -Value "Flatten Into This Folder" -Force
-    Set-ItemProperty -Path $regPathDrag -Name "Icon" -Value "C:\Windows\System32\imageres.dll,46" -Force
-    Set-ItemProperty -Path $regPathDrag -Name "MultiSelectModel" -Value "Single" -Force
+    Set-ItemProperty -Path $regPathBackground -Name "(Default)" -Value "Flatten Directories Into This Folder" -Force
+    Set-ItemProperty -Path $regPathBackground -Name "Icon" -Value "C:\Windows\System32\imageres.dll,46" -Force
+    
+    $commandPathBackground = Join-Path $regPathBackground "command"
+    if (-not (Test-Path $commandPathBackground)) {
+        New-Item -Path $commandPathBackground -Force | Out-Null
+    }
+    
+    $flattenIntoScript = Join-Path $installPath "FlattenIntoDirectory.ps1"
+    
+    # Command for Method 2: uses current directory as target
+    # User will select source folders via dialog
+    $commandMethod2 = "$psExe -NoProfile -ExecutionPolicy Bypass -Command `"try { & '$flattenIntoScript' -TargetPath '%V' } catch { Write-Host ('ERROR: ' + `$_) -ForegroundColor Red } ; Write-Host 'Press any key to close...' -ForegroundColor Yellow ; `$null = `$Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown')`""
+    
+    Set-ItemProperty -Path $commandPathBackground -Name "(Default)" -Value $commandMethod2 -Force
+    Write-Host "  Registered: Flatten Into This Folder (right-click drag target)" -ForegroundColor Green
+    Write-Log "Registered: Flatten Into This Folder (Background context menu)"
+    Write-LogDebug "Registry key: $commandPathBackground"
+    Write-LogDebug "Registry command: $commandMethod2"
     
     $commandPathDrag = Join-Path $regPathDrag "command"
     if (-not (Test-Path $commandPathDrag)) {

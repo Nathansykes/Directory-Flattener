@@ -103,7 +103,7 @@ function Uninstall-FlattenContextMenu {
     
     $regPaths = @(
         "HKCU:\Software\Classes\Directory\shell\FlattenDirectories",
-        "HKCU:\Software\Classes\Directory\shell\FlattenInto"
+        "HKCU:\Software\Classes\Directory\Background\shell\FlattenIntoDirectory"
     )
     
     foreach ($regPath in $regPaths) {
