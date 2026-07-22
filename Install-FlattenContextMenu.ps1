@@ -66,6 +66,9 @@ function Install-FlattenContextMenu {
         Write-Host "ERROR: This script requires Administrator privileges!" -ForegroundColor Red
         Write-Host "Please run PowerShell as Administrator and try again." -ForegroundColor Red
         Write-LogError "Installation failed: Administrator privileges required"
+        Write-Host ""
+        Write-Host "Press any key to exit..." -ForegroundColor Yellow
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         exit 1
     }
     
@@ -111,6 +114,9 @@ function Install-FlattenContextMenu {
     if ([string]::IsNullOrEmpty($scriptDir)) {
         Write-Host "ERROR: Could not determine script directory" -ForegroundColor Red
         Write-LogError "Could not determine script directory"
+        Write-Host ""
+        Write-Host "Press any key to exit..." -ForegroundColor Yellow
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         exit 1
     }
     
@@ -130,6 +136,9 @@ function Install-FlattenContextMenu {
         } else {
             Write-Host "  ERROR: Could not find $script" -ForegroundColor Red
             Write-LogError "Could not find script: $script at $sourcePath"
+            Write-Host ""
+            Write-Host "Press any key to exit..." -ForegroundColor Yellow
+            $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
             exit 1
         }
     }

@@ -286,6 +286,12 @@ try {
 catch {
     Write-LogError ("FATAL ERROR: " + $_)
     Write-Host ("FATAL ERROR: " + $_) -ForegroundColor Red
+    Write-Host ""
+    Write-Host "A critical error occurred. Check the log file for details:" -ForegroundColor Yellow
+    Write-Host $logFile -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "Press any key to exit..." -ForegroundColor Yellow
+    $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
     Write-Log "Script terminated with fatal error" -Level "ERROR"
     exit 1
 }

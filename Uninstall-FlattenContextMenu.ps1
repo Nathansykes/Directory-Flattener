@@ -67,6 +67,9 @@ function Uninstall-FlattenContextMenu {
         Write-Host "ERROR: This script requires Administrator privileges!" -ForegroundColor Red
         Write-Host "Please run PowerShell as Administrator and try again." -ForegroundColor Red
         Write-LogError "Uninstallation failed: Administrator privileges required"
+        Write-Host ""
+        Write-Host "Press any key to exit..." -ForegroundColor Yellow
+        $null = $Host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
         exit 1
     }
     
