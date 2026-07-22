@@ -7,6 +7,41 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# Logging setup
+$logDir = "C:\ProgramData\Flatten\logs"
+if (-not (Test-Path $logDir)) {
+    New-Item -ItemType Directory -Path $logDir -Force | Out-Null
+}
+
+$timestamp = Get-Date -Format "yyyyMMdd_HHmmss"
+$logFile = Join-Path $logDir "Install_$timestamp.log"
+
+function Write-Log {
+    param(
+        [string]$Message,
+        [string]$Level = "INFO"
+    )
+    
+    $logMessage = "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') [$Level] $Message"
+    Add-Content -Path $logFile -Value $logMessage -ErrorAction Continue
+    Write-Host $Message
+}
+
+function Write-LogError {
+    param([string]$Message)
+    Write-Log -Message $Message -Level "ERROR"
+}
+
+function Write-LogSuccess {
+    param([string]$Message)
+    Write-Log -Message $Message -Level "SUCCESS"
+}
+
+function Write-LogDebug {
+    param([string]$Message)
+    Write-Log -Message $Message -Level "DEBUG"
+}
+
 function Test-AdminPrivileges {
     $currentUser = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = New-Object Security.Principal.WindowsPrincipal($currentUser)
@@ -14,41 +49,57 @@ function Test-AdminPrivileges {
 }
 
 function Install-FlattenContextMenu {
+    $startTime = Get-Date
+    
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host "Flatten Directories - Installation" -ForegroundColor Cyan
     Write-Host "========================================" -ForegroundColor Cyan
     Write-Host ""
     
+    Write-Log "========================================" -Level "OPERATION"
+    Write-Log "Installation started" -Level "OPERATION"
+    Write-Log "========================================" -Level "OPERATION"
+    Write-LogDebug "Script started at: $startTime"
+    
     # Check admin privileges
     if (-not (Test-AdminPrivileges)) {
         Write-Host "ERROR: This script requires Administrator privileges!" -ForegroundColor Red
         Write-Host "Please run PowerShell as Administrator and try again." -ForegroundColor Red
+        Write-LogError "Installation failed: Administrator privileges required"
         exit 1
     }
     
     Write-Host "Administrator privileges confirmed." -ForegroundColor Green
+    Write-Log "Administrator privileges confirmed"
     Write-Host ""
     
     # Determine installation path
     $installPath = Join-Path $env:ProgramFiles "Flatten"
     
     Write-Host "Installation path: $installPath"
+    Write-LogDebug "Installation path: $installPath"
     
     # Create installation directory
     if (-not (Test-Path $installPath)) {
         Write-Host "Creating installation directory..." -ForegroundColor Yellow
         New-Item -ItemType Directory -Path $installPath -Force | Out-Null
+        Write-Log "Created installation directory: $installPath"
+        Write-LogDebug "Installation directory created"
     } else {
         if ($Force) {
             Write-Host "Installation directory already exists. Using -Force to overwrite." -ForegroundColor Yellow
+            Write-Log "Installation directory already exists, using -Force flag"
         } else {
             Write-Host "Installation directory already exists." -ForegroundColor Yellow
+            Write-LogDebug "Installation directory already exists"
         }
     }
     
     # Copy scripts to installation directory
     Write-Host ""
     Write-Host "Copying scripts to installation directory..." -ForegroundColor Yellow
+    Write-Log ""
+    Write-Log "Copying scripts to installation directory..."
     
     # Use $PSScriptRoot for reliable script directory detection
     if ([string]::IsNullOrEmpty($PSScriptRoot)) {
@@ -59,8 +110,11 @@ function Install-FlattenContextMenu {
     
     if ([string]::IsNullOrEmpty($scriptDir)) {
         Write-Host "ERROR: Could not determine script directory" -ForegroundColor Red
+        Write-LogError "Could not determine script directory"
         exit 1
     }
+    
+    Write-LogDebug "Script directory: $scriptDir"
     
     $scriptsToCopy = @(
         "Flatten-Directories.ps1"
@@ -71,14 +125,19 @@ function Install-FlattenContextMenu {
         if (Test-Path $sourcePath) {
             Copy-Item -Path $sourcePath -Destination $installPath -Force
             Write-Host "  Copied: $script" -ForegroundColor Green
+            Write-Log "Copied script: $script"
+            Write-LogDebug "Copied from '$sourcePath' to '$installPath'"
         } else {
             Write-Host "  ERROR: Could not find $script" -ForegroundColor Red
+            Write-LogError "Could not find script: $script at $sourcePath"
             exit 1
         }
     }
     
     Write-Host ""
     Write-Host "Registering context menu entries..." -ForegroundColor Yellow
+    Write-Log ""
+    Write-Log "Registering context menu entries..."
     
     $regPath = "HKCU:\Software\Classes\Directory\shell\FlattenDirectories"
     $regPathMulti = "HKCU:\Software\Classes\Directory\shell\FlattenDirectories"
@@ -86,6 +145,7 @@ function Install-FlattenContextMenu {
     # Create registry path for Method 1 (right-click menu)
     if (-not (Test-Path $regPath)) {
         New-Item -Path $regPath -Force | Out-Null
+        Write-LogDebug "Created registry path: $regPath"
     }
     
     Set-ItemProperty -Path $regPath -Name "(Default)" -Value "Flatten Directories" -Force
@@ -98,12 +158,16 @@ function Install-FlattenContextMenu {
     
     $flattenScript = Join-Path $installPath "Flatten-Directories.ps1"
     $psExe = "$env:SystemRoot\System32\WindowsPowerShell\v1.0\powershell.exe"
+    Write-LogDebug "PowerShell executable: $psExe"
+    Write-LogDebug "Flatten script path: $flattenScript"
     
     # Command for Method 1: launches PowerShell with flattened folder in parent
     $command = "$psExe -NoProfile -ExecutionPolicy Bypass -Command `"& '$flattenScript' -Paths '%L'`" & pause"
     
     Set-ItemProperty -Path $commandPath -Name "(Default)" -Value $command -Force
     Write-Host "  Registered: Flatten Directories (Method 1)" -ForegroundColor Green
+    Write-Log "Registered: Flatten Directories (Method 1)"
+    Write-LogDebug "Registry key: $commandPath"
     
     # Create registry path for Method 2 (drag and drop)
     # This uses a different registry structure for right-click drag operations
@@ -111,6 +175,7 @@ function Install-FlattenContextMenu {
     
     if (-not (Test-Path $regPathDrag)) {
         New-Item -Path $regPathDrag -Force | Out-Null
+        Write-LogDebug "Created registry path: $regPathDrag"
     }
     
     Set-ItemProperty -Path $regPathDrag -Name "(Default)" -Value "Flatten Into This Folder" -Force
@@ -122,11 +187,17 @@ function Install-FlattenContextMenu {
         New-Item -Path $commandPathDrag -Force | Out-Null
     }
     
+    
     # Command for Method 2: uses %V (target folder) and %L (source items)
     $commandDrag = "$psExe -NoProfile -ExecutionPolicy Bypass -Command `"& '$flattenScript' -Paths '%L' -OutputPath '%V'`" & pause"
     
     Set-ItemProperty -Path $commandPathDrag -Name "(Default)" -Value $commandDrag -Force
     Write-Host "  Registered: Flatten Into This Folder (Method 2)" -ForegroundColor Green
+    Write-Log "Registered: Flatten Into This Folder (Method 2)"
+    Write-LogDebug "Registry key: $commandPathDrag"
+    
+    $endTime = Get-Date
+    $duration = ($endTime - $startTime).TotalSeconds
     
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Cyan
@@ -138,9 +209,18 @@ function Install-FlattenContextMenu {
     Write-Host "  • Right-click drag folders to a target folder and select 'Flatten Into This Folder'" -ForegroundColor White
     Write-Host ""
     Write-Host "Scripts installed to: $installPath" -ForegroundColor Gray
+    Write-Host "Log file: $logFile" -ForegroundColor Gray
     Write-Host ""
     Write-Host "To uninstall, run: .\Uninstall-FlattenContextMenu.ps1" -ForegroundColor Gray
     Write-Host ""
+    
+    Write-Log ""
+    Write-LogSuccess "Installation completed successfully!"
+    Write-Log "Scripts installed to: $installPath" -Level "INFO"
+    Write-LogDebug "Total duration: $duration seconds"
+    Write-Log "========================================" -Level "OPERATION"
+    Write-Log "Installation finished at: $endTime" -Level "OPERATION"
+    Write-Log "========================================" -Level "OPERATION"
 }
 
 Install-FlattenContextMenu
